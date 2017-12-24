@@ -8,6 +8,9 @@ extern crate syn;
 extern crate quote;
 
 
+#[macro_use(c)]
+extern crate cute;
+
 #[proc_macro_derive(EnumTools)]
 pub fn enum_tools(input: TokenStream) -> TokenStream {
     let source = input.to_string();
@@ -33,35 +36,43 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
     let mut fns = Vec::new();
 
     for variant in variants {
-        let getter = &variant.ident;
+        let variant_name = &variant.ident;
+        let variant_path = quote!{ #enum_name :: #variant_name }; 
 
-        let data = match variant.data {
-            syn::VariantData::Tuple(ref v) => v,
+        let is_variant = quote::Ident::new(format!("is_{}", variant_name));
+
+        match variant.data {
+            syn::VariantData::Tuple(ref v) => {
+                let syms = &c![quote::Ident::new(format!("v{}", i)), for i in 0..v.len()];
+
+                fns.push(quote! {
+                    #[allow(unreachable_patterns)]
+                    #vis fn #variant_name (self) -> ( #(#v),* ) {
+                        match self {
+                            #variant_path  ( #(#syms),* ) => ( #(#syms),* ),
+                            _ => panic!(),
+                        }
+                    }
+                });
+
+                fns.push(quote!{
+                    #[allow(unreachable_patterns)]
+                    #vis fn #is_variant (&self) -> bool {
+                        match *self { #variant_path (..) => true, _ => false, }
+                    }
+                });
+
+            },
             syn::VariantData::Struct(_) => unimplemented!(),
-            syn::VariantData::Unit => continue,
+            syn::VariantData::Unit => {
+                fns.push(quote!{
+                    #[allow(unreachable_patterns)]
+                    #vis fn #is_variant (&self) -> bool {
+                        match *self { #variant_path => true, _ => false, }
+                    }
+                });
+            },
         };
-
-        let mut syms_a = Vec::new();
-        for i in 0..data.len() {
-            syms_a.push(quote::Ident::new(format!("v{}", i)));
-        }
-        let syms_b = syms_a.clone();
-
-        // let ref_getter = getter.to_string() + "_ref";
-        // let ref_getter_type = "&".to_string() + &getter_type.to_string();
-
-        let variant_name = quote! {#enum_name :: #getter };
-
-        let new = quote! {
-            #vis fn #getter (self) -> ( #(#data),* ) {
-                match self {
-                    #variant_name  ( #(#syms_a),* ) => ( #(#syms_b),* ),
-                    _ => panic!(),
-                }
-            }
-        };
-
-        fns.push(new);
     }
 
     quote! {
