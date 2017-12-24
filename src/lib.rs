@@ -34,17 +34,23 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
     let vis = &ast.vis;
 
     let mut fns = Vec::new();
+    let mut names = Vec::new();
+    let mut patterns = Vec::new();
 
     for variant in variants {
         let variant_name = &variant.ident;
-        let variant_path = quote!{ #enum_name :: #variant_name }; 
+        names.push(variant_name.to_string());
+
+        let variant_path = quote!{ #enum_name::#variant_name }; 
 
         let is_variant = quote::Ident::new(format!("is_{}", variant_name));
 
-
         match variant.data {
             syn::VariantData::Tuple(ref fields) => {
-                let syms = &c![quote::Ident::new(format!("f{}", i)), for i in 0..fields.len()];
+                use quote::Ident;
+                let syms = &c![Ident::new(format!("f{}", i)), for i in 0..fields.len()];
+
+
 
                 fns.push(quote! {
                     #[allow(unreachable_patterns)]
@@ -63,11 +69,11 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
                     }
                 });
 
+                patterns.push(quote!{#variant_path (..)});
+
             },
             syn::VariantData::Struct(ref fields) =>  {
-                // let syms = &c![f.ident.unwrap(), for f in &fields.iter()];
-                let syms: &Vec<&syn::Ident> = &fields.iter().map(|f| f.ident.as_ref().unwrap()).collect();
-
+                let syms = &c![f.ident.as_ref().unwrap(), for f in fields];
                 let types = c![&f.ty, for f in fields];
 
                 let new = quote! {
@@ -79,7 +85,6 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
                         }
                     }
                 };
-                println!("{}", new);
                 fns.push(new);
 
                 fns.push(quote!{
@@ -89,6 +94,8 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
                     }
                 });
 
+                patterns.push(quote!{#variant_path {..}});
+
             },
             syn::VariantData::Unit => {
                 fns.push(quote!{
@@ -97,14 +104,23 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
                         match *self { #variant_path => true, _ => false, }
                     }
                 });
+                patterns.push(quote!{#variant_path});
             },
         };
     }
+
+    let cases: Vec<quote::Tokens> = patterns.iter().zip(names).map(|(p, n)| quote!{#p => #n}).collect();
 
     quote! {
         #[allow(non_snake_case, dead_code)]
         impl #impl_generics #enum_name  #ty_generics #where_clause {
             #(#fns)* 
+
+            fn name(&self) -> &str {
+                match *self {
+                    #(#cases,)*
+                }
+            }
         }
     }
 }
