@@ -41,13 +41,14 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
 
         let is_variant = quote::Ident::new(format!("is_{}", variant_name));
 
+
         match variant.data {
-            syn::VariantData::Tuple(ref v) => {
-                let syms = &c![quote::Ident::new(format!("v{}", i)), for i in 0..v.len()];
+            syn::VariantData::Tuple(ref fields) => {
+                let syms = &c![quote::Ident::new(format!("f{}", i)), for i in 0..fields.len()];
 
                 fns.push(quote! {
                     #[allow(unreachable_patterns)]
-                    #vis fn #variant_name (self) -> ( #(#v),* ) {
+                    #vis fn #variant_name (self) -> ( #(#fields),* ) {
                         match self {
                             #variant_path  ( #(#syms),* ) => ( #(#syms),* ),
                             _ => panic!(),
@@ -63,7 +64,32 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
                 });
 
             },
-            syn::VariantData::Struct(_) => unimplemented!(),
+            syn::VariantData::Struct(ref fields) =>  {
+                // let syms = &c![f.ident.unwrap(), for f in &fields.iter()];
+                let syms: &Vec<&syn::Ident> = &fields.iter().map(|f| f.ident.as_ref().unwrap()).collect();
+
+                let types = c![&f.ty, for f in fields];
+
+                let new = quote! {
+                    #[allow(unreachable_patterns)]
+                    #vis fn #variant_name (self) -> ( #(#types),* ) {
+                        match self {
+                            #variant_path  { #(#syms),* } => ( #(#syms),* ),
+                            _ => panic!(),
+                        }
+                    }
+                };
+                println!("{}", new);
+                fns.push(new);
+
+                fns.push(quote!{
+                    #[allow(unreachable_patterns)]
+                    #vis fn #is_variant (&self) -> bool {
+                        match *self { #variant_path {..} => true, _ => false, }
+                    }
+                });
+
+            },
             syn::VariantData::Unit => {
                 fns.push(quote!{
                     #[allow(unreachable_patterns)]
