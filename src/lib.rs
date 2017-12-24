@@ -41,6 +41,12 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
             syn::VariantData::Unit => continue,
         };
 
+        let mut syms_a = Vec::new();
+        for i in 0..data.len() {
+            syms_a.push(quote::Ident::new(format!("v{}", i)));
+        }
+        let syms_b = syms_a.clone();
+
         // let ref_getter = getter.to_string() + "_ref";
         // let ref_getter_type = "&".to_string() + &getter_type.to_string();
 
@@ -48,7 +54,10 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
 
         let new = quote! {
             #vis fn #getter (self) -> ( #(#data),* ) {
-                if let #variant_name (v) = self { v } else { panic!() }
+                match self {
+                    #variant_name  ( #(#syms_a),* ) => ( #(#syms_b),* ),
+                    _ => panic!(),
+                }
             }
         };
 
@@ -64,15 +73,6 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
 }
 
 
-
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
 
 
 
