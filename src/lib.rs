@@ -43,6 +43,7 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
 
         let variant_path = quote!{ #enum_name::#variant_name }; 
 
+        let unwrap_name = quote::Ident::new(format!("unwrap_{}", variant_name));
         let is_variant = quote::Ident::new(format!("is_{}", variant_name));
 
         match variant.data {
@@ -54,7 +55,7 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
 
                 fns.push(quote! {
                     #[allow(unreachable_patterns)]
-                    #vis fn #variant_name (self) -> ( #(#fields),* ) {
+                    #vis fn #unwrap_name (self) -> ( #(#fields),* ) {
                         match self {
                             #variant_path  ( #(#syms),* ) => ( #(#syms),* ),
                             _ => panic!(),
@@ -78,7 +79,7 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
 
                 let new = quote! {
                     #[allow(unreachable_patterns)]
-                    #vis fn #variant_name (self) -> ( #(#types),* ) {
+                    #vis fn #unwrap_name (self) -> ( #(#types),* ) {
                         match self {
                             #variant_path  { #(#syms),* } => ( #(#syms),* ),
                             _ => panic!(),
