@@ -11,6 +11,16 @@ extern crate quote;
 #[macro_use(c)]
 extern crate cute;
 
+
+
+macro_rules! fmt_id {
+    ($e:expr, $( $args:tt ),* ) => { quote::Ident::new(format!($e, $($args,)*)) }
+}
+
+
+
+
+
 #[proc_macro_derive(EnumTools)]
 pub fn enum_tools(input: TokenStream) -> TokenStream {
     let source = input.to_string();
@@ -20,7 +30,6 @@ pub fn enum_tools(input: TokenStream) -> TokenStream {
 
     expanded.parse().unwrap()
 }
-
 
 fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
     let variants = match ast.body {
@@ -43,14 +52,13 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
 
         let variant_path = quote!{ #enum_name::#variant_name }; 
 
-        let unwrap_name = quote::Ident::new(format!("unwrap_{}", variant_name));
-        let is_variant = quote::Ident::new(format!("is_{}", variant_name));
+        let unwrap_name = fmt_id!("unwrap_{}", variant_name);
+        let unwrap_ref_name = fmt_id!("unwrap_{}_ref", variant_name);
+        let is_variant = fmt_id!("is_{}", variant_name);
 
         match variant.data {
             syn::VariantData::Tuple(ref fields) => {
-                use quote::Ident;
-                let syms = &c![Ident::new(format!("f{}", i)), for i in 0..fields.len()];
-
+                let syms = &c![fmt_id!("f{}", i), for i in 0..fields.len()];
 
 
                 fns.push(quote! {
@@ -62,6 +70,17 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
                         }
                     }
                 });
+
+                fns.push(quote! {
+                    #[allow(unreachable_patterns)]
+                    #vis fn #unwrap_ref_name (&self) -> ( #(&#fields),* ) {
+                        match *self {
+                            #variant_path  (#(ref #syms),* ) => ( #(#syms),* ),
+                            _ => panic!(),
+                        }
+                    }
+                });
+
 
                 fns.push(quote!{
                     #[allow(unreachable_patterns)]
@@ -75,9 +94,9 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
             },
             syn::VariantData::Struct(ref fields) =>  {
                 let syms = &c![f.ident.as_ref().unwrap(), for f in fields];
-                let types = c![&f.ty, for f in fields];
+                let types = &c![&f.ty, for f in fields];
 
-                let new = quote! {
+                fns.push(quote! {
                     #[allow(unreachable_patterns)]
                     #vis fn #unwrap_name (self) -> ( #(#types),* ) {
                         match self {
@@ -85,8 +104,17 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
                             _ => panic!(),
                         }
                     }
-                };
-                fns.push(new);
+                });
+
+                fns.push(quote! {
+                    #[allow(unreachable_patterns)]
+                    #vis fn #unwrap_ref_name (&self) -> ( #(&#types),* ) {
+                        match *self {
+                            #variant_path  { #(ref #syms),* } => ( #(#syms),* ),
+                            _ => panic!(),
+                        }
+                    }
+                });
 
                 fns.push(quote!{
                     #[allow(unreachable_patterns)]

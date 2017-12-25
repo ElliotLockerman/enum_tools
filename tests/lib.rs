@@ -57,4 +57,19 @@ mod tests {
     }
 
 
+    #[test]
+    fn test_e() {
+        let t = Test::A(0);
+
+        let _: &i32 = t.unwrap_A_ref();
+    }
+
+    #[test]
+    fn test_f() {
+        let t = Test::D{x: 0, y: 1};
+
+        let (_, _): (&i32, &i32)  = t.unwrap_D_ref();
+    }
+
+
 }
