@@ -71,5 +71,11 @@ mod tests {
         let (_, _): (&i32, &i32)  = t.unwrap_D_ref();
     }
 
+    #[test]
+    #[should_panic]
+    fn test_g() {
+        let t = Test::C;
+        t.unwrap_A();
+    }
 
 }
