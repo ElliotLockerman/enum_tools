@@ -26,6 +26,7 @@ In addition to the above, if the variant has data (either a tuple or struct) wit
 ```rust
 fn unwrap_A(self) -> (T1, T2, ...) { /* ... */ }
 fn unwrap_A_ref(&self) -> (&T1, &T2, ...) { /* ... */ }
+fn unwrap_A_mut(&mut self) -> (&mut T1, &mut T2, ...) { /* ... */ }
 ```
 
 If the variable is the wrong variant, a panic will be generated. 
