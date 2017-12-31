@@ -78,4 +78,26 @@ mod tests {
         t.unwrap_A();
     }
 
+
+    #[test]
+    fn test_h() { 
+        let mut t = Test::A(0);
+        {
+            let v = t.unwrap_A_mut();
+            *v = 10;
+        }
+        assert_eq!(t.unwrap_A(), 10);
+    }
+
+
+    #[test]
+    fn test_i() { 
+        let mut t = Test::D{x:0, y:1};
+        {
+            let (x,y) = t.unwrap_D_mut();
+            *x = 10;
+            *y = 11;
+        }
+        assert_eq!(t.unwrap_D(), (10, 11));
+    }
 }

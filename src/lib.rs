@@ -56,6 +56,7 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
 
         let unwrap_name = fmt_id!("unwrap_{}", variant_name);
         let unwrap_ref_name = fmt_id!("unwrap_{}_ref", variant_name);
+        let unwrap_mut_ref_name = fmt_id!("unwrap_{}_mut", variant_name);
         let is_variant = fmt_id!("is_{}", variant_name);
 
         match variant.data {
@@ -82,6 +83,15 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
                     }
                 });
 
+                fns.push(quote! {
+                    #[allow(unreachable_patterns)]
+                    #vis fn #unwrap_mut_ref_name (&mut self) -> ( #(&mut #fields),* ) {
+                        match *self {
+                            #variant_path  (#(ref mut #syms),* ) => ( #(#syms),* ),
+                            _ => panic!("EnumTools::unwrap: was not {}", #variant_path_str),
+                        }
+                    }
+                });
 
                 fns.push(quote!{
                     #[allow(unreachable_patterns)]
@@ -112,6 +122,16 @@ fn expand_enum_tools(ast: &syn::DeriveInput) -> quote::Tokens {
                     #vis fn #unwrap_ref_name (&self) -> ( #(&#types),* ) {
                         match *self {
                             #variant_path  { #(ref #syms),* } => ( #(#syms),* ),
+                            _ => panic!("EnumTools::unwrap: was not {}", #variant_path_str),
+                        }
+                    }
+                });
+
+                fns.push(quote! {
+                    #[allow(unreachable_patterns)]
+                    #vis fn #unwrap_mut_ref_name (&mut self) -> ( #(&mut #types),* ) {
+                        match *self {
+                            #variant_path  { #(ref mut #syms),* } => ( #(#syms),* ),
                             _ => panic!("EnumTools::unwrap: was not {}", #variant_path_str),
                         }
                     }
